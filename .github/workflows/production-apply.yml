@@ -20,9 +20,9 @@ jobs:
       name: production
       url: https://console.aws.amazon.com/vpc
     
-    defaults:
-      run:
-        working-directory: ./terraform
+    environment: 
+      name: production
+      url: https://console.aws.amazon.com/vpc
     
     steps:
       - name: Checkout Code
@@ -42,6 +42,7 @@ jobs:
 
       - name: Terraform Init
         id: init
+        working-directory: ./terraform
         run: |
           terraform init \
             -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
@@ -52,14 +53,17 @@ jobs:
 
       - name: Terraform Plan
         id: plan
+        working-directory: ./terraform
         run: terraform plan -no-color -input=false -out=tfplan
 
       - name: Terraform Apply
         id: apply
+        working-directory: ./terraform
         run: terraform apply -auto-approve -input=false tfplan
 
       - name: Get Outputs
         id: outputs
+        working-directory: ./terraform
         run: |
           echo "vpc_id=$(terraform output -raw vpc_id)" >> $GITHUB_OUTPUT
           echo "ec2_public_ip=$(terraform output -raw ec2_public_ip)" >> $GITHUB_OUTPUT

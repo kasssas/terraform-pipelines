@@ -20,9 +20,9 @@ jobs:
       name: production
       url: https://console.aws.amazon.com/vpc
     
-    defaults:
-      run:
-        working-directory: ./terraform
+    environment: 
+      name: production
+      url: https://console.aws.amazon.com/vpc
     
     steps:
       - name: Checkout Code
@@ -50,6 +50,7 @@ jobs:
 
       - name: Terraform Init
         id: init
+        working-directory: ./terraform
         run: |
           terraform init \
             -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
@@ -59,10 +60,12 @@ jobs:
 
       - name: Terraform Plan Destroy
         id: plan
+        working-directory: ./terraform
         run: terraform plan -destroy -no-color -input=false
 
       - name: Terraform Destroy
         id: destroy
+        working-directory: ./terraform
         run: terraform destroy -auto-approve -input=false
 
       - name: Destruction Summary
