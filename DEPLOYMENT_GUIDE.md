@@ -252,16 +252,48 @@ You should now see:
 
 ### Step 1: Configure Main Branch Protection
 
-This ensures that code cannot be merged to `main` unless the CI/CD pipeline passes.
+This configuration is critical for a production-grade setup. It prevents developers (including yourself) from pushing broken code directly to the `main` branch. It ensures every change goes through a Pull Request (PR) and passes your automated tests first.
 
-1.  Go to your repository **Settings**.
-2.  Click **Branches** in the left sidebar.
-3.  Click **"Add branch protection rule"**.
-4.  **Branch name pattern**: `main`
-5.  Check **"Require a pull request before merging"**.
-6.  Check **"Require status checks to pass before merging"**.
-7.  Search for and select your job name: `Security Scan & Plan Review`
-    *   *Note: If you don't see this check, trigger a PR run first so GitHub registers the job name.*
+1.  **Navigate to Repository Settings**:
+    - Go to your repository's main page on GitHub.
+    - Click the **Settings** tab (usually the last tab on the right).
+
+2.  **Access Branch Protection**:
+    - In the left sidebar menu, look under the specific section (sometimes labeled "Code and automation").
+    - Click on **Branches**.
+
+3.  **Create a New Rule**:
+    - Click the button **"Add branch protection rule"**.
+
+4.  **Define the Branch Pattern**:
+    - In the **"Branch name pattern"** field, type: `main`
+    - This tells GitHub to apply these rules to your `main` branch.
+
+5.  **Require Pull Requests**:
+    - Check the box **"Require a pull request before merging"**.
+    - *Why?* This disables "git push origin main". You must create a branch (like `dev` or `feature/xyz`), push that, and then open a Pull Request to merge it into `main`.
+
+6.  **Require Status Checks (The Core CI/CD Integration)**:
+    - Check the box **"Require status checks to pass before merging"**.
+    - This is the most important step for CI/CD. It forces your `pr-review.yml` pipeline to return "Success" before the "Merge" button becomes clickable.
+    
+7.  **Select the Specific Check**:
+    - In the search bar that appears under "Status checks that are required", type the name of your job: `Security Scan & Plan Review`
+    - **Select it from the list.**
+    
+    > [!NOTE]
+    > **How does GitHub know this name?**
+    > GitHub **automatically detects** this name from your YAML file (line 17: `name: Security Scan & Plan Review`).
+    > *   You do **NOT** type `pr-review.yml`.
+    > *   You do **NOT** add the file manually.
+    > *   You just search for `Security Scan & Plan Review` in the list.
+    
+    > [!IMPORTANT]
+    > **Can't find the job name?**  
+    > If "Security Scan & Plan Review" does NOT appear in the search results, it means GitHub has not seen this workflow run yet.
+    > 1. Create a dummy PR (e.g., update `README.md`).
+    > 2. Wait for the `Pull Request Review` workflow to run.
+    > 3. Go back to this settings page and search again. The job will now be visible.
 
 ### Step 2: Enforcing Strict Security Checks (Optional)
 
