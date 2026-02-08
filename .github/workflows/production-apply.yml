@@ -20,10 +20,6 @@ jobs:
       name: production
       url: https://console.aws.amazon.com/vpc
     
-    environment: 
-      name: production
-      url: https://console.aws.amazon.com/vpc
-    
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
