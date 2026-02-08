@@ -1,0 +1,96 @@
+name: Manual Destroy Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type "DESTROY" to confirm infrastructure deletion'
+        required: true
+        default: ''
+
+env:
+  TF_VERSION: '1.6.0'
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+
+jobs:
+  terraform-destroy:
+    name: Destroy Infrastructure
+    runs-on: ubuntu-latest
+    environment: 
+      name: production
+      url: https://console.aws.amazon.com/vpc
+    
+    defaults:
+      run:
+        working-directory: ./terraform
+    
+    steps:
+      - name: Validate Confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirmation }}" != "DESTROY" ]; then
+            echo "❌ Confirmation failed. You must type 'DESTROY' exactly to proceed."
+            exit 1
+          fi
+          echo "✅ Confirmation validated. Proceeding with infrastructure destruction..."
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        id: init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=prod/terraform.tfstate" \
+            -backend-config="region=${{ secrets.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ secrets.TF_STATE_DYNAMODB_TABLE }}"
+
+      - name: Terraform Plan Destroy
+        id: plan
+        run: terraform plan -destroy -no-color -input=false
+
+      - name: Terraform Destroy
+        id: destroy
+        run: terraform destroy -auto-approve -input=false
+
+      - name: Destruction Summary
+        if: always()
+        run: |
+          echo "## 🗑️ Infrastructure Destruction" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.destroy.outcome }}" == "success" ]; then
+            echo "### ✅ Infrastructure Destroyed Successfully" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All Terraform-managed resources have been deleted." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "#### Verification Steps" >> $GITHUB_STEP_SUMMARY
+            echo "1. Check AWS Console to confirm resources are gone" >> $GITHUB_STEP_SUMMARY
+            echo "2. Verify no unexpected resources remain" >> $GITHUB_STEP_SUMMARY
+            echo "3. Review any destroy errors in the logs above" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Destruction Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Some resources may not have been deleted. Please:" >> $GITHUB_STEP_SUMMARY
+            echo "1. Review the error logs above" >> $GITHUB_STEP_SUMMARY
+            echo "2. Manually check AWS Console for remaining resources" >> $GITHUB_STEP_SUMMARY
+            echo "3. Fix any issues and re-run this workflow if needed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check Destroy Status
+        if: steps.destroy.outcome == 'failure'
+        run: |
+          echo "❌ Terraform destroy failed!"
+          echo "Please check AWS Console for any remaining resources."
+          exit 1

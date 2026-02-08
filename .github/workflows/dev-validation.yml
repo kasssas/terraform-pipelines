@@ -1,0 +1,100 @@
+name: Development Validation
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/dev-validation.yml'
+
+env:
+  TF_VERSION: '1.6.0'
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+
+jobs:
+  terraform-validate:
+    name: Terraform Validation & Plan
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./terraform
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Init
+        id: init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=dev/terraform.tfstate" \
+            -backend-config="region=${{ secrets.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ secrets.TF_STATE_DYNAMODB_TABLE }}"
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -no-color -input=false
+        continue-on-error: true
+
+      - name: Generate Validation Report
+        if: always()
+        run: |
+          echo "## Development Validation Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Format Check" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.fmt.outcome }}" == "success" ]; then
+            echo "✅ Passed - Code is properly formatted" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Failed - Run 'terraform fmt -recursive' to fix formatting" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Initialization" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.init.outcome }}" == "success" ]; then
+            echo "✅ Passed - Terraform initialized successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Failed - Check backend configuration" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Validation" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.validate.outcome }}" == "success" ]; then
+            echo "✅ Passed - Configuration is valid" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Failed - Fix syntax errors" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Plan" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.plan.outcome }}" == "success" ]; then
+            echo "✅ Passed - Plan generated successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Warning - Plan had issues (review logs)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check Results
+        if: steps.fmt.outcome == 'failure' || steps.init.outcome == 'failure' || steps.validate.outcome == 'failure'
+        run: |
+          echo "❌ Validation failed. Please fix the errors above."
+          exit 1
