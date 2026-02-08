@@ -1,4 +1,4 @@
-# Data source to get available availability zones a
+# Data source to get available availability zones aa
 data "aws_availability_zones" "available" {
   state = "available"
 }

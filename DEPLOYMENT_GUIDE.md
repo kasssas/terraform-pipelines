@@ -271,6 +271,9 @@ This configuration is critical for a production-grade setup. It prevents develop
 
 5.  **Require Pull Requests**:
     - Check the box **"Require a pull request before merging"**.
+    - **CRITICAL FOR SOLO DEVELOPERS**: 
+        - Ensure **"Require approvals"** is **UNCHECKED** (or set to 0).
+        - *Why?* You cannot approve your own Pull Request. If you require 1 approval, you will deliver a PR that you cannot merge.
     - *Why?* This disables "git push origin main". You must create a branch (like `dev` or `feature/xyz`), push that, and then open a Pull Request to merge it into `main`.
 
 6.  **Require Status Checks (The Core CI/CD Integration)**:
@@ -421,10 +424,15 @@ This pipeline runs security scanning and generates plan artifacts.
 This pipeline applies infrastructure changes after manual approval.
 
 1. **Merge the Pull Request**:
-   - If you're satisfied with the plan output from Phase 2
-   - Click **"Merge pull request"** on the PR
-   - Click **"Confirm merge"**
-   - The PR will be merged to `main`
+   - Scroll to the bottom of the Pull Request page.
+   - Look for the **"All checks have passed"** section (green checkmarks).
+   - **If Blocked by Review**:
+     - If you see "Review required" and you are the only developer:
+     - Check the box **"Merge without waiting for requirements to be met (bypass rules)"**.
+     - This option is only available because you are the repository administrator.
+   - Click the green **"Merge pull request"** button.
+   - Click **"Confirm merge"** in the dropdown.
+   - *Result*: The PR is merged into `main`, and this **automatically triggers** the Production Apply pipeline.
 
 2. **Monitor Approval Request**:
    - Go to **Actions** tab
