@@ -7,7 +7,7 @@ vpc_cidr           = "10.0.0.0/16"
 public_subnet_cidr = "10.0.1.0/24"
 
 # EC2 Configuration
-instance_type = "t2.micro"
+instance_type = "t3.micro"
 
 # IMPORTANT: Replace with your actual SSH key pair name from AWS
 # Leave empty if you don't need SSH access

@@ -19,10 +19,6 @@ jobs:
     name: Security Scan & Plan Review
     runs-on: ubuntu-latest
     
-    defaults:
-      run:
-        working-directory: ./terraform
-    
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -42,6 +38,7 @@ jobs:
 
       - name: Terraform Init
         id: init
+        working-directory: ./terraform
         run: |
           terraform init \
             -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
@@ -51,6 +48,7 @@ jobs:
 
       - name: Terraform Validate
         id: validate
+        working-directory: ./terraform
         run: terraform validate
 
       - name: Setup Python for Checkov
@@ -63,6 +61,7 @@ jobs:
 
       - name: Run Checkov Security Scan
         id: checkov
+        working-directory: ./terraform
         run: |
           checkov -d . \
             --framework terraform \
@@ -82,6 +81,7 @@ jobs:
 
       - name: Terraform Plan
         id: plan
+        working-directory: ./terraform
         run: |
           terraform plan -no-color -input=false -out=tfplan 2>&1 | tee plan-output.txt
 
