@@ -13,13 +13,15 @@ This project implements a complete CI/CD pipeline for Terraform infrastructure w
 
 ## 🏗️ Infrastructure
 
-The included Terraform code deploys a basic AWS infrastructure for testing:
+The included Terraform code deploys a production-ready AWS infrastructure:
 
-- **VPC** with CIDR 10.0.0.0/16
-- **Public Subnet** with internet connectivity
-- **Internet Gateway** and Route Tables
-- **EC2 Instance** (t2.micro) running Apache web server
-- **Security Groups** for SSH and HTTP access
+- **VPC** with public and private subnets across multiple AZs
+- **EKS Cluster** with managed node groups
+- **RDS PostgreSQL** database in private subnets
+- **ECR Repositories** for container images (frontend, backend, database)
+- **ArgoCD** for GitOps-based deployments
+- **NAT Gateway** for private subnet internet access
+- **NGINX Ingress Controller** for traffic management
 
 ## 🚀 Quick Start
 
@@ -141,17 +143,29 @@ graph LR
 ```
 terraform-pipelines/
 ├── .github/
+│   ├── scripts/
+│   │   ├── convert_checkov_to_html.py          # Checkov HTML converter
+│   │   ├── generate-dev-validation-summary.sh  # Dev validation summary
+│   │   ├── generate-pr-summary.sh              # PR review summary
+│   │   └── generate-production-summary.sh      # Production deployment summary
 │   └── workflows/
 │       ├── dev-validation.yml        # Dev branch validation
 │       ├── pr-review.yml             # PR security scan & plan
 │       ├── production-apply.yml      # Production deployment
-│       └── manual-destroy.yml        # Infrastructure teardown
+│       ├── manual-destroy.yml        # Infrastructure teardown
+│       └── force-unlock.yml          # State lock management
 ├── terraform/
-│   ├── main.tf                       # VPC, subnet, EC2 resources
+│   ├── vpc/                          # VPC, subnets, NAT gateway
+│   ├── eks/                          # EKS cluster and node groups
+│   ├── rds/                          # PostgreSQL database
+│   ├── ecr/                          # Container registries
+│   ├── argocd/                       # ArgoCD deployment
+│   ├── ingress/                      # NGINX ingress controller
+│   ├── main.tf                       # Module orchestration
 │   ├── variables.tf                  # Input variables
 │   ├── outputs.tf                    # Resource outputs
-│   ├── backend.tf                    # S3 backend config
-│   ├── versions.tf                   # Provider versions
+│   ├── provider.tf                   # AWS, Kubernetes, Helm providers
+│   ├── data.tf                       # Data sources
 │   └── terraform.tfvars              # Variable values
 ├── DEPLOYMENT_GUIDE.md               # Step-by-step setup guide
 └── README.md                         # This file
@@ -185,12 +199,11 @@ Edit `terraform/terraform.tfvars`:
 
 ```hcl
 aws_region         = "us-east-1"
-environment        = "dev"
+cluster_name       = "devops-eks"
 vpc_cidr           = "10.0.0.0/16"
-public_subnet_cidr = "10.0.1.0/24"
-instance_type      = "t2.micro"
-key_name           = "your-ssh-key-name"
-allowed_ssh_cidr   = "0.0.0.0/0"  # Restrict to your IP for production
+public_subnets     = ["10.0.1.0/24", "10.0.2.0/24"]
+private_subnets    = ["10.0.10.0/24", "10.0.20.0/24"]
+allowed_public_ip  = "0.0.0.0/0"  # Restrict to your IP for production
 ```
 
 ## 📈 Monitoring
@@ -204,40 +217,58 @@ allowed_ssh_cidr   = "0.0.0.0/0"  # Restrict to your IP for production
 ### Cost Monitoring
 
 **Expected Monthly Cost**:
-- EC2 t2.micro: ~$8-10/month (FREE with AWS Free Tier)
-- VPC, subnet, IGW: Free
+- EKS Cluster: ~$73/month (control plane)
+- EC2 Nodes (t3.medium x2): ~$60/month
+- RDS PostgreSQL (db.t3.micro): ~$15/month
+- NAT Gateway: ~$32/month
 - S3, DynamoDB: < $1/month
+- **Total**: ~$180/month
 
 **Set up billing alerts**:
 1. AWS Console → CloudWatch → Billing
-2. Create alarm for spend > $5/month
+2. Create alarm for spend > $200/month
 
 ## 🧪 Testing
 
-### Test the Web Server
+### Access the EKS Cluster
 
 After successful deployment:
 
-1. Get the EC2 public IP from workflow output
-2. Open browser: `http://[EC2_PUBLIC_IP]`
-3. You should see a purple gradient page with deployment details
+1. Configure kubectl:
+   ```bash
+   aws eks update-kubeconfig --region us-east-1 --name devops-eks
+   ```
 
-### Test SSH Access
+2. Verify cluster access:
+   ```bash
+   kubectl get nodes
+   kubectl get pods -A
+   ```
 
-```bash
-ssh -i your-key.pem ec2-user@[EC2_PUBLIC_IP]
-```
+### Access ArgoCD
+
+1. Get the initial admin password:
+   ```bash
+   kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+   ```
+
+2. Port-forward to access the UI:
+   ```bash
+   kubectl port-forward ns/argocd svc/argocd-server 8080:443
+   ```
+
+3. Open browser: `https://localhost:8080` (username: `admin`)
 
 ## 🔧 Customization
 
 ### Add More Resources
 
-Edit `terraform/main.tf` to add:
-- RDS databases
-- Load balancers
-- Auto-scaling groups
+Create new modules in `terraform/` for:
+- ElastiCache for caching
 - CloudFront distributions
-- S3 buckets
+- S3 buckets for static assets
+- Lambda functions
+- API Gateway
 
 ### Multi-Environment Support
 
@@ -250,6 +281,10 @@ terraform/environments/
 ```
 
 ### Enhanced Security Scanning
+
+The pipeline already includes:
+- ✅ **Checkov** security scanning with HTML reports
+- ✅ **Automated summary generation** via shell scripts
 
 Add to `pr-review.yml`:
 - **tflint** for Terraform linting
@@ -279,13 +314,13 @@ Add to `pr-review.yml`:
 - Review security warnings in the artifact
 - Address critical findings for production
 
-### Can't Access Web Server
+### Can't Access EKS Cluster
 
 **Check**:
-- Wait 2-3 minutes for user_data script to complete
-- Verify security group allows HTTP (port 80)
-- Ensure you're using `http://` not `https://`
-- Check instance is in "running" state
+- AWS credentials are configured correctly
+- EKS cluster is in "Active" state
+- Node groups are healthy
+- Update kubeconfig with correct cluster name and region
 
 See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) for more troubleshooting.
 
@@ -315,6 +350,3 @@ This project is open source and available under the MIT License.
 **Made with ❤️ for DevOps Engineers**
 
 For questions or issues, please open a GitHub issue.
-For questions or issues, please open a GitHub issue.
-
-a
