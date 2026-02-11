@@ -52,7 +52,9 @@ jobs:
         run: terraform validate
 
       # Run tfsec
+      # Run tfsec
       - name: Create reports directory
+        working-directory: ./terraform
         run: mkdir -p reports
 
       - name: Run tfsec
@@ -60,7 +62,7 @@ jobs:
         with:
             soft_fail: true
             working_directory: ./terraform
-            additional_args: --format html --out ../reports/tfsec-results.html
+            additional_args: --format html --out reports/tfsec-results.html
 
       # Upload Security Reports
       - name: Upload Security Reports
@@ -68,7 +70,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Security-Reports
-          path: reports/
+          path: terraform/reports/
 
       - name: Install Checkov
         run: pip install checkov
@@ -88,7 +90,9 @@ jobs:
       - name: Convert Checkov Report to HTML
         if: always()
         working-directory: ./terraform
-        run: python ../.github/scripts/convert_checkov_to_html.py checkov-report.xml checkov-report.html
+        run: |
+          ls -la
+          python ../.github/scripts/convert_checkov_to_html.py checkov-report.xml checkov-report.html
 
       - name: Upload Checkov Reports
         if: always()
