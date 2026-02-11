@@ -54,15 +54,14 @@ jobs:
       # Run tfsec
       # Run tfsec
       - name: Create reports directory
-        working-directory: ./terraform
-        run: mkdir -p reports
+        run: mkdir -p ${{ github.workspace }}/terraform/reports
 
       - name: Run tfsec
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
             soft_fail: true
-            working_directory: ./terraform
-            additional_args: --format html --out reports/tfsec-results.html
+            working_directory: ${{ github.workspace }}/terraform
+            additional_args: --format html --out ${{ github.workspace }}/terraform/reports/tfsec-results.html
 
       # Upload Security Reports
       - name: Upload Security Reports
@@ -70,7 +69,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Security-Reports
-          path: terraform/reports/
+          path: ${{ github.workspace }}/terraform/reports/
 
       - name: Install Checkov
         run: pip install checkov
@@ -89,10 +88,13 @@ jobs:
 
       - name: Convert Checkov Report to HTML
         if: always()
-        working-directory: ./terraform
+        working-directory: ${{ github.workspace }}/terraform
         run: |
+          echo "Listing files in current directory:"
           ls -la
-          python ../.github/scripts/convert_checkov_to_html.py checkov-report.xml checkov-report.html
+          echo "Listing files in root:"
+          ls -la ${{ github.workspace }}
+          python ${{ github.workspace }}/.github/scripts/convert_checkov_to_html.py checkov-report.xml checkov-report.html
 
       - name: Upload Checkov Reports
         if: always()
