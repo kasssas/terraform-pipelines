@@ -212,4 +212,6 @@ def convert_junit_to_html(xml_file, html_file):
         sys.exit(1)
 
 if __name__ == "__main__":
-    convert_junit_to_html('checkov-report.xml', 'checkov-report.html')
+    input_file = sys.argv[1] if len(sys.argv) > 1 else 'checkov-report.xml'
+    output_file = sys.argv[2] if len(sys.argv) > 2 else 'checkov-report.html'
+    convert_junit_to_html(input_file, output_file)

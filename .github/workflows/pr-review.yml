@@ -52,11 +52,15 @@ jobs:
         run: terraform validate
 
       # Run tfsec
+      - name: Create reports directory
+        run: mkdir -p reports
+
       - name: Run tfsec
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
             soft_fail: true
-            additional_args: --format html --out reports/tfsec-results.html
+            working_directory: ./terraform
+            additional_args: --format html --out ../reports/tfsec-results.html
 
       # Upload Security Reports
       - name: Upload Security Reports
@@ -84,7 +88,7 @@ jobs:
       - name: Convert Checkov Report to HTML
         if: always()
         working-directory: ./terraform
-        run: python ../.github/scripts/convert_checkov_to_html.py
+        run: python ../.github/scripts/convert_checkov_to_html.py checkov-report.xml checkov-report.html
 
       - name: Upload Checkov Reports
         if: always()
