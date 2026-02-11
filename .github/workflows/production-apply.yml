@@ -70,41 +70,15 @@ jobs:
       - name: Deployment Summary
         if: always()
         run: |
-          echo "## 🚀 Production Deployment" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.apply.outcome }}" == "success" ]; then
-            echo "### ✅ Deployment Successful" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "#### Infrastructure Details" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Network**" >> $GITHUB_STEP_SUMMARY
-            echo "- **VPC ID**: \`${{ steps.outputs.outputs.vpc_id }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**EKS Cluster**" >> $GITHUB_STEP_SUMMARY
-            echo "- **Cluster Name**: \`${{ steps.outputs.outputs.eks_cluster_name }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "- **Endpoint**: \`${{ steps.outputs.outputs.eks_cluster_endpoint }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Database**" >> $GITHUB_STEP_SUMMARY
-            echo "- **RDS Endpoint**: \`${{ steps.outputs.outputs.rds_endpoint }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Container Registry**" >> $GITHUB_STEP_SUMMARY
-            echo "- **ECR Repositories**: \`${{ steps.outputs.outputs.ecr_repository_urls }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "#### AWS Console Links" >> $GITHUB_STEP_SUMMARY
-            echo "- [VPC Dashboard](https://console.aws.amazon.com/vpc)" >> $GITHUB_STEP_SUMMARY
-            echo "- [EKS Dashboard](https://console.aws.amazon.com/eks)" >> $GITHUB_STEP_SUMMARY
-            echo "- [RDS Dashboard](https://console.aws.amazon.com/rds)" >> $GITHUB_STEP_SUMMARY
-            echo "- [ECR Dashboard](https://console.aws.amazon.com/ecr)" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "#### Next Steps" >> $GITHUB_STEP_SUMMARY
-            echo "1. Verify resources in AWS Console" >> $GITHUB_STEP_SUMMARY
-            echo "2. Configure kubectl: \`aws eks update-kubeconfig --name ${{ steps.outputs.outputs.eks_cluster_name }} --region ${{ env.AWS_REGION }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "3. Verify cluster access: \`kubectl get nodes\`" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "### ❌ Deployment Failed" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Please review the logs above for error details." >> $GITHUB_STEP_SUMMARY
-          fi
+          chmod +x .github/scripts/generate-production-summary.sh
+          .github/scripts/generate-production-summary.sh \
+            "${{ steps.apply.outcome }}" \
+            "${{ steps.outputs.outputs.vpc_id }}" \
+            "${{ steps.outputs.outputs.eks_cluster_name }}" \
+            "${{ steps.outputs.outputs.eks_cluster_endpoint }}" \
+            "${{ steps.outputs.outputs.rds_endpoint }}" \
+            "${{ steps.outputs.outputs.ecr_repository_urls }}" \
+            "${{ env.AWS_REGION }}"
 
       - name: Check Apply Status
         if: steps.apply.outcome == 'failure'

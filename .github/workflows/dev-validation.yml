@@ -63,35 +63,12 @@ jobs:
       - name: Generate Validation Report
         if: always()
         run: |
-          echo "## Development Validation Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Format Check" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.fmt.outcome }}" == "success" ]; then
-            echo "✅ Passed - Code is properly formatted" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ Failed - Run 'terraform fmt -recursive' to fix formatting" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Initialization" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.init.outcome }}" == "success" ]; then
-            echo "✅ Passed - Terraform initialized successfully" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ Failed - Check backend configuration" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Validation" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.validate.outcome }}" == "success" ]; then
-            echo "✅ Passed - Configuration is valid" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ Failed - Fix syntax errors" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Plan" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.plan.outcome }}" == "success" ]; then
-            echo "✅ Passed - Plan generated successfully" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⚠️ Warning - Plan had issues (review logs)" >> $GITHUB_STEP_SUMMARY
-          fi
+          chmod +x .github/scripts/generate-dev-validation-summary.sh
+          .github/scripts/generate-dev-validation-summary.sh \
+            "${{ steps.fmt.outcome }}" \
+            "${{ steps.init.outcome }}" \
+            "${{ steps.validate.outcome }}" \
+            "${{ steps.plan.outcome }}"
 
       - name: Check Results
         if: steps.fmt.outcome == 'failure' || steps.init.outcome == 'failure' || steps.validate.outcome == 'failure'

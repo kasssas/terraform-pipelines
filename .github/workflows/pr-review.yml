@@ -51,10 +51,20 @@ jobs:
         working-directory: ./terraform
         run: terraform validate
 
-      - name: Setup Python for Checkov
-        uses: actions/setup-python@v5
+      # Run tfsec
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
         with:
-          python-version: '3.11'
+            soft_fail: true
+            additional_args: --format html --out reports/tfsec-results.html
+
+      # Upload Security Reports
+      - name: Upload Security Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Security-Reports
+          path: reports/
 
       - name: Install Checkov
         run: pip install checkov
@@ -149,30 +159,11 @@ jobs:
       - name: PR Review Summary
         if: always()
         run: |
-          echo "## Pull Request Review Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Terraform Validation" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.validate.outcome }}" == "success" ]; then
-            echo "✅ Configuration is valid" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ Validation failed" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Security Scan (Checkov)" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.checkov.outcome }}" == "success" ]; then
-            echo "✅ No security issues detected" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⚠️ Security issues found - download HTML report from artifacts for detailed analysis" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Terraform Plan" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.plan.outcome }}" == "success" ]; then
-            echo "✅ Plan generated successfully" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Download the plan artifact to review changes before merging." >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ Plan generation failed" >> $GITHUB_STEP_SUMMARY
-          fi
+          chmod +x .github/scripts/generate-pr-summary.sh
+          .github/scripts/generate-pr-summary.sh \
+            "${{ steps.validate.outcome }}" \
+            "${{ steps.checkov.outcome }}" \
+            "${{ steps.plan.outcome }}"
 
       - name: Check Critical Failures
         if: steps.validate.outcome == 'failure'
