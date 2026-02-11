@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontend-ingress
+  namespace: default
+  annotations:
+    # Use the NGINX Ingress Controller installed via Terraform
+    # This uses the existing Load Balancer created by the NGINX service
+    kubernetes.io/ingress.class: nginx
+    
+    # Optional: SSL Redirection if you have a certificate on the connection
+    # nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80

@@ -71,12 +71,19 @@ jobs:
             --soft-fail
         continue-on-error: true
 
-      - name: Upload Checkov Report
+      - name: Convert Checkov Report to HTML
+        if: always()
+        working-directory: ./terraform
+        run: python ../.github/scripts/convert_checkov_to_html.py
+
+      - name: Upload Checkov Reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: checkov-security-report
-          path: terraform/checkov-report.xml
+          path: |
+            terraform/checkov-report.xml
+            terraform/checkov-report.html
           retention-days: 30
 
       - name: Terraform Plan
@@ -123,7 +130,8 @@ jobs:
             
             ### 📦 Artifacts
             - [Download Terraform Plan](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-            - [Download Security Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            - [Download Security Report (HTML)](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) - **Recommended for better readability**
+            - [Download Security Report (XML)](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
             
             ### ℹ️ Next Steps
             1. Review the plan output above
@@ -154,7 +162,7 @@ jobs:
           if [ "${{ steps.checkov.outcome }}" == "success" ]; then
             echo "✅ No security issues detected" >> $GITHUB_STEP_SUMMARY
           else
-            echo "⚠️ Security issues found - review the artifact" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Security issues found - download HTML report from artifacts for detailed analysis" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Terraform Plan" >> $GITHUB_STEP_SUMMARY

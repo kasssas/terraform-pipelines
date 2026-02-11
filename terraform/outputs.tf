@@ -1,49 +1,55 @@
+# VPC Outputs
 output "vpc_id" {
-  description = "ID of the VPC"
-  value       = aws_vpc.main.id
+  description = "The ID of the VPC"
+  value       = module.vpc.vpc_id
 }
 
-output "vpc_cidr" {
-  description = "CIDR block of the VPC"
-  value       = aws_vpc.main.cidr_block
+output "public_subnets" {
+  description = "List of public subnet IDs"
+  value       = module.vpc.public_subnets
 }
 
-output "public_subnet_id" {
-  description = "ID of the public subnet"
-  value       = aws_subnet.public.id
+output "private_subnets" {
+  description = "List of private subnet IDs"
+  value       = module.vpc.private_subnets
 }
 
-output "internet_gateway_id" {
-  description = "ID of the Internet Gateway"
-  value       = aws_internet_gateway.main.id
+# EKS Outputs
+output "eks_cluster_name" {
+  description = "The name of the EKS cluster"
+  value       = module.eks.cluster_name
 }
 
-output "security_group_id" {
-  description = "ID of the EC2 security group"
-  value       = aws_security_group.ec2.id
+output "eks_cluster_endpoint" {
+  description = "The endpoint for the EKS cluster"
+  value       = module.eks.cluster_endpoint
 }
 
-output "ec2_instance_id" {
-  description = "ID of the EC2 instance"
-  value       = aws_instance.web.id
+output "eks_cluster_certificate_authority_data" {
+  description = "Base64 encoded certificate data for the EKS cluster"
+  value       = module.eks.cluster_certificate_authority_data
+  sensitive   = true
 }
 
-output "ec2_public_ip" {
-  description = "Public IP address of the EC2 instance"
-  value       = aws_instance.web.public_ip
+output "eks_cluster_auth_token" {
+  description = "Authentication token for the EKS cluster"
+  value       = module.eks.cluster_auth_token
+  sensitive   = true
 }
 
-output "ec2_private_ip" {
-  description = "Private IP address of the EC2 instance"
-  value       = aws_instance.web.private_ip
+output "eks_node_security_group_id" {
+  description = "Security group ID for EKS nodes"
+  value       = module.eks.node_security_group_id
 }
 
-output "ssh_command" {
-  description = "SSH command to connect to the instance"
-  value       = var.key_name != "" ? "ssh -i ${var.key_name}.pem ec2-user@${aws_instance.web.public_ip}" : "SSH key not configured"
+# RDS Outputs
+output "rds_endpoint" {
+  description = "The connection endpoint for the RDS instance"
+  value       = module.rds.endpoint
 }
 
-output "web_url" {
-  description = "URL to access the web server"
-  value       = "http://${aws_instance.web.public_ip}"
+# ECR Outputs
+output "ecr_repository_urls" {
+  description = "List of ECR repository URLs"
+  value       = module.ecr.repository_urls
 }

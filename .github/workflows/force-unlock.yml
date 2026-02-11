@@ -1,0 +1,48 @@
+name: Force Unlock Terraform State
+
+on:
+  workflow_dispatch:
+    inputs:
+      lock_id:
+        description: 'The Lock ID to force unlock (e.g., 5bb01b2d-79fe-c535-9524-352452c395f7)'
+        required: true
+
+env:
+  TF_VERSION: '1.6.0'
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+
+jobs:
+  force-unlock:
+    name: Force Unlock State
+    runs-on: ubuntu-latest
+    environment: 
+      name: production
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: ./terraform
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=prod/terraform.tfstate" \
+            -backend-config="region=${{ secrets.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ secrets.TF_STATE_DYNAMODB_TABLE }}"
+
+      - name: Force Unlock
+        working-directory: ./terraform
+        run: terraform force-unlock -force ${{ inputs.lock_id }}
