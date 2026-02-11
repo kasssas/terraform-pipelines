@@ -51,8 +51,22 @@ jobs:
         working-directory: ./terraform
         run: terraform validate
 
+      # --- TFSEC Security Scan ---
+      - name: Create Reports Directory
+        run: mkdir -p terraform/reports
 
+      - name: Run tfsec Security Scan
+        id: tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: ./terraform
+          additional_args: >
+            --format html 
+            --out reports/tfsec-results.html 
+            --soft-fail
+            --tfvars-file terraform.tfvars
 
+      # --- Checkov Security Scan ---
       - name: Install Checkov
         run: pip install checkov
 
@@ -72,18 +86,17 @@ jobs:
         if: always()
         working-directory: ${{ github.workspace }}/terraform
         run: |
-          echo "Debug: Listing files in ${{ github.workspace }}/terraform after checkov run"
-          ls -la
           python ${{ github.workspace }}/.github/scripts/convert_checkov_to_html.py checkov-report.xml checkov-report.html
 
-      - name: Upload Checkov Reports
+      - name: Upload Combined Security Reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: checkov-security-report
+          name: security-scan-reports
           path: |
             terraform/checkov-report.xml
             terraform/checkov-report.html
+            terraform/reports/tfsec-results.html
           retention-days: 30
 
       - name: Terraform Plan
@@ -104,23 +117,25 @@ jobs:
       - name: Generate PR Comment
         uses: actions/github-script@v7
         if: github.event_name == 'pull_request'
-        env:
-          PLAN: ${{ steps.plan.outputs.stdout }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
             const planOutput = fs.readFileSync('terraform/plan-output.txt', 'utf8');
             const checkovStatus = '${{ steps.checkov.outcome }}';
+            const tfsecStatus = '${{ steps.tfsec.outcome }}';
             
-            const output = `## Terraform PR Review Results
+            const output = `## 🛡️ Terraform PR Security & Plan Review
             
-            ### 🔍 Security Scan (Checkov)
-            ${checkovStatus === 'success' ? '✅ **Passed** - No security issues found' : '⚠️ **Issues Found** - Check the security report artifact'}
+            ### 🔍 Security Scan Summary
+            | Tool | Status | Report |
+            | :--- | :--- | :--- |
+            | **Checkov** | ${checkovStatus === 'success' ? '✅ Pass' : '⚠️ Issues Found'} | [View Artifacts](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) |
+            | **tfsec** | ${tfsecStatus === 'success' ? '✅ Pass' : '⚠️ Issues Found'} | [View Artifacts](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) |
             
-            ### 📋 Terraform Plan
+            ### 📋 Terraform Plan Output
             <details>
-            <summary>Click to view plan output</summary>
+            <summary>Click to expand plan details</summary>
             
             \`\`\`terraform
             ${planOutput.slice(0, 60000)}
@@ -128,16 +143,8 @@ jobs:
             
             </details>
             
-            ### 📦 Artifacts
-            - [Download Terraform Plan](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-            - [Download Security Report (HTML)](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) - **Recommended for better readability**
-            - [Download Security Report (XML)](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-            
-            ### ℹ️ Next Steps
-            1. Review the plan output above
-            2. Check the Checkov security report for any issues
-            3. If everything looks good, merge this PR to trigger production deployment
-            `;
+            ---
+            *Action required: If security issues were found, please review the attached HTML reports in the Actions artifacts.*`;
 
             github.rest.issues.createComment({
               issue_number: context.issue.number,
